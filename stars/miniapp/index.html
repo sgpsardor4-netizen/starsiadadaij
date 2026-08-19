@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Stars Shop</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg-deep:#0A0E27;
+    --bg-panel:#131A3A;
+    --gold:#F2B33D;
+    --gold-soft:rgba(242,179,61,.16);
+    --text-hi:#F4F1EA;
+    --text-lo:#8A90B3;
+    --line:rgba(255,255,255,.08);
+    --uzs:#4FA87D;
+    --rub:#5B8DEF;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background: radial-gradient(ellipse at 50% -10%, #1B2350 0%, var(--bg-deep) 55%);
+    color:var(--text-hi);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+    padding-bottom:100px;
+  }
+  #sky{position:fixed; inset:0; z-index:0; pointer-events:none;}
+
+  .wrap{position:relative; z-index:1; max-width:480px; margin:0 auto; padding:28px 20px 0;}
+
+  header{text-align:center; margin-bottom:22px;}
+  .brand{
+    font-family:'Space Grotesk', 'Inter', sans-serif;
+    font-size:15px; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--gold); font-weight:600;
+  }
+  h1{
+    font-family:'Space Grotesk','Inter',sans-serif;
+    font-size:34px; font-weight:700; letter-spacing:-.01em;
+    margin-top:6px;
+  }
+  .sub{color:var(--text-lo); font-size:14px; margin-top:6px;}
+
+  .toggle{
+    display:flex; background:var(--bg-panel); border:1px solid var(--line);
+    border-radius:14px; padding:4px; margin:24px 0 20px; gap:4px;
+  }
+  .toggle button{
+    flex:1; padding:11px 0; border:none; border-radius:10px; background:transparent;
+    color:var(--text-lo); font-size:14px; font-weight:600; cursor:pointer;
+    transition:.2s; font-family:inherit;
+  }
+  .toggle button.active{ background:var(--gold-soft); color:var(--gold); }
+
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .pkg{
+    position:relative; background:var(--bg-panel); border:1px solid var(--line);
+    border-radius:16px; padding:18px 14px; cursor:pointer; transition:.15s;
+    text-align:center;
+  }
+  .pkg:active{ transform:scale(.97); }
+  .pkg.selected{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold), 0 8px 24px -8px var(--gold-soft); }
+  .pkg .stars{
+    font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .pkg .price{ margin-top:6px; color:var(--text-lo); font-size:13px; }
+  .pkg .badge{
+    position:absolute; top:-9px; right:10px; background:var(--gold); color:#1A1200;
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; letter-spacing:.02em;
+  }
+
+  .providers{ margin-top:24px; }
+  .providers h3{ font-size:13px; color:var(--text-lo); font-weight:600; margin-bottom:10px; text-transform:uppercase; letter-spacing:.08em; }
+  .prov-row{ display:flex; gap:10px; }
+  .prov{
+    flex:1; background:var(--bg-panel); border:1px solid var(--line); border-radius:14px;
+    padding:12px 6px; text-align:center; cursor:pointer; font-weight:600; font-size:12.5px;
+    transition:.15s; line-height:1.3;
+  }
+  .prov.selected{ border-color:var(--gold); background:var(--gold-soft); color:var(--gold); }
+
+  .bar{
+    position:fixed; bottom:0; left:0; right:0; z-index:2;
+    background:linear-gradient(0deg, var(--bg-deep) 60%, transparent);
+    padding:24px 20px 28px;
+  }
+  .pay-btn{
+    max-width:440px; margin:0 auto; display:block; width:100%;
+    background:var(--gold); color:#1A1200; border:none; border-radius:16px;
+    padding:16px; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit;
+    opacity:.4; pointer-events:none; transition:.2s;
+  }
+  .pay-btn.ready{ opacity:1; pointer-events:auto; }
+  .pay-btn:active.ready{ transform:scale(.98); }
+
+  .status{
+    text-align:center; padding:80px 20px; position:relative; z-index:1;
+  }
+  .status h2{ font-family:'Space Grotesk',sans-serif; font-size:24px; margin-bottom:8px;}
+  .status p{ color:var(--text-lo); font-size:14px; }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+
+<div class="wrap" id="shop">
+  <header>
+    <div class="brand">✦ Stars Shop</div>
+    <h1>Paket tanlang</h1>
+    <div class="sub">Telegram Stars'ni qulay narxda oling</div>
+  </header>
+
+  <div class="toggle" id="currencyToggle">
+    <button data-cur="UZS" class="active">🇺🇿 SO'M</button>
+    <button data-cur="RUB">🇷🇺 RUBL</button>
+  </div>
+
+  <div class="grid" id="packageGrid"></div>
+
+  <div class="providers">
+    <h3 id="providerLabel">To'lov usuli</h3>
+    <div class="prov-row" id="providerRow"></div>
+  </div>
+</div>
+
+<div class="bar">
+  <button class="pay-btn" id="payBtn">Paketni tanlang</button>
+</div>
+
+<script>
+const API = ""; // bir domenda ishlaydi
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.get("paid") === "1") {
+  document.getElementById("shop").innerHTML =
+    `<div class="status"><h2>✅ To'lov qabul qilindi</h2><p>Stars tez orada hisobingizga o'tkaziladi. Botga qayting.</p></div>`;
+  document.querySelector(".bar").style.display = "none";
+} else {
+  initShop();
+}
+
+const PROVIDERS = {
+  UZS: [ {id:"click", label:"Click"}, {id:"payme", label:"Payme"}, {id:"humo", label:"Humo karta"} ],
+  RUB: [ {id:"yookassa", label:"YooKassa"} ],
+};
+
+let state = { currency: "UZS", packages: [], selectedPkg: null, selectedProvider: null };
+
+async function initShop(){
+  const res = await fetch(`${API}/api/packages`);
+  state.packages = await res.json();
+  renderProviders();
+  renderPackages();
+
+  document.getElementById("currencyToggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    [...e.currentTarget.children].forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.currency = btn.dataset.cur;
+    state.selectedProvider = null;
+    renderProviders();
+    renderPackages();
+    updateBar();
+  });
+
+  document.getElementById("payBtn").addEventListener("click", handlePay);
+}
+
+function renderPackages(){
+  const grid = document.getElementById("packageGrid");
+  grid.innerHTML = "";
+  state.packages.forEach((p, i) => {
+    const price = state.currency === "UZS" ? p.price_uzs : p.price_rub;
+    const symbol = state.currency === "UZS" ? "so'm" : "₽";
+    const el = document.createElement("div");
+    el.className = "pkg" + (state.selectedPkg?.id === p.id ? " selected" : "");
+    if (i === 2) el.innerHTML = `<div class="badge">MASHHUR</div>`;
+    el.innerHTML += `
+      <div class="stars">⭐ ${p.stars}</div>
+      <div class="price">${price.toLocaleString()} ${symbol}</div>
+    `;
+    el.addEventListener("click", () => {
+      state.selectedPkg = p;
+      renderPackages();
+      updateBar();
+    });
+    grid.appendChild(el);
+  });
+}
+
+function renderProviders(){
+  const row = document.getElementById("providerRow");
+  row.innerHTML = "";
+  const list = PROVIDERS[state.currency];
+  list.forEach((pr, idx) => {
+    const el = document.createElement("div");
+    el.className = "prov" + (state.selectedProvider === pr.id || (list.length===1 && idx===0 && (state.selectedProvider = pr.id)) ? " selected" : "");
+    el.textContent = pr.label;
+    el.addEventListener("click", () => {
+      state.selectedProvider = pr.id;
+      renderProviders();
+      updateBar();
+    });
+    row.appendChild(el);
+  });
+}
+
+function updateBar(){
+  const btn = document.getElementById("payBtn");
+  if (state.selectedPkg && state.selectedProvider){
+    const price = state.currency === "UZS" ? state.selectedPkg.price_uzs : state.selectedPkg.price_rub;
+    const symbol = state.currency === "UZS" ? "so'm" : "₽";
+    btn.textContent = `To'lash — ${price.toLocaleString()} ${symbol}`;
+    btn.classList.add("ready");
+  } else {
+    btn.textContent = "Paket tanlang";
+    btn.classList.remove("ready");
+  }
+}
+
+async function handlePay(){
+  if (!state.selectedPkg || !state.selectedProvider) return;
+  const btn = document.getElementById("payBtn");
+  btn.textContent = "Yuklanmoqda...";
+
+  const user = tg?.initDataUnsafe?.user;
+  const body = {
+    user_id: user?.id || 0,
+    username: user?.username || "",
+    package_id: state.selectedPkg.id,
+    currency: state.currency,
+    provider: state.selectedProvider,
+  };
+
+  try {
+    const res = await fetch(`${API}/api/create-order`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.manual) {
+      showManualPayment(data.order_id, data.manual);
+    } else if (data.payment_url) {
+      location.href = data.payment_url;
+    }
+  } catch(e) {
+    btn.textContent = "Xatolik, qayta urinib ko'ring";
+    setTimeout(updateBar, 1500);
+  }
+}
+
+function showManualPayment(orderId, manual){
+  document.querySelector(".bar").style.display = "none";
+  document.getElementById("shop").innerHTML = `
+    <div class="status" style="padding-top:40px;">
+      <h2>💳 Humo kartaga o'tkazing</h2>
+      <p style="margin-bottom:18px;">
+        Quyidagi kartaga <b style="color:var(--text-hi);">${manual.amount.toLocaleString()} so'm</b> o'tkazing:
+      </p>
+      <div style="background:var(--bg-panel); border:1px solid var(--line); border-radius:16px;
+                  padding:20px; margin:0 auto 22px; max-width:280px;">
+        <div style="font-family:'Space Grotesk',monospace; font-size:20px; letter-spacing:.06em;
+                    font-weight:700; color:var(--text-hi);">${manual.card_number}</div>
+        <div style="color:var(--text-lo); font-size:13px; margin-top:6px;">${manual.card_holder}</div>
+      </div>
+      <button class="pay-btn ready" id="confirmSentBtn" style="max-width:280px; margin:0 auto;">
+        ✅ To'lov qildim
+      </button>
+      <p style="margin-top:16px; font-size:13px; color:var(--text-lo);">
+        To'lovingiz aniqlangach avtomatik xabar beramiz.
+      </p>
+    </div>
+  `;
+
+  document.getElementById("confirmSentBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("confirmSentBtn");
+    btn.textContent = "Yuborilmoqda...";
+    try {
+      await fetch(`${API}/api/mark-sent`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({order_id: orderId}),
+      });
+    } catch (e) { /* baribir kutish holatini ko'rsatamiz */ }
+
+    document.getElementById("shop").innerHTML = `
+      <div class="status">
+        <h2>⏳ Tasdiqlanishi kutilmoqda</h2>
+        <p>To'lovingiz aniqlangach botda xabar olasiz. Botga qaytishingiz mumkin.</p>
+      </div>
+    `;
+    if (window.Telegram?.WebApp) {
+      setTimeout(() => window.Telegram.WebApp.close(), 1800);
+    }
+  });
+}
+
+// --- Twinkling stars background (signature element) ---
+(function(){
+  const canvas = document.getElementById("sky");
+  const ctx = canvas.getContext("2d");
+  let w, h, stars;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    stars = Array.from({length: 90}, () => ({
+      x: Math.random()*w, y: Math.random()*h,
+      r: Math.random()*1.3 + 0.3,
+      phase: Math.random()*Math.PI*2,
+      speed: 0.01 + Math.random()*0.02,
+    }));
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function frame(t){
+    ctx.clearRect(0,0,w,h);
+    stars.forEach(s => {
+      const alpha = 0.35 + 0.65 * Math.abs(Math.sin(s.phase + t*s.speed*0.001));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(242,211,150,${alpha})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
